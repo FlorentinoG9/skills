@@ -1,0 +1,58 @@
+name: Sync abac-system skill to standalone repo
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "skills/abac-system/**"
+      - ".github/workflows/sync-abac-system-skill.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Sync abac-system to FlorentinoG9/abac-system-skill
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout skills repo
+        uses: actions/checkout@v4
+
+      - name: Checkout standalone repo
+        uses: actions/checkout@v4
+        with:
+          repository: FlorentinoG9/abac-system-skill
+          token: ${{ secrets.STANDALONE_SYNC_TOKEN }}
+          path: standalone
+
+      - name: Sync skill content
+        run: |
+          set -euo pipefail
+          rsync -a --delete \
+            --exclude='.git/' \
+            --exclude='README.md' \
+            --exclude='package.json' \
+            --exclude='bun.lock' \
+            --exclude='CHANGELOG.md' \
+            --exclude='.changeset/' \
+            --exclude='.github/' \
+            --exclude='scripts/' \
+            --exclude='.gitignore' \
+            --exclude='node_modules/' \
+            skills/abac-system/ standalone/
+
+      - name: Commit and push if changed
+        working-directory: standalone
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "No changes to sync"
+            exit 0
+          fi
+          git config user.name "FlorentinoG9"
+          git config user.email "f.valle.garcia@gmail.com"
+          git add -A
+          git commit -m "chore: sync abac-system from FlorentinoG9/skills@${GITHUB_SHA::7}"
+          git push
